@@ -40,7 +40,7 @@ def cli():
                     'pretty_print' : True,
                     'output' : 'json',
                     'applications_postfix': '_hosts',
-                    'no_meta': False
+                    'no_meta': True
                    }
         defaults.update(find_and_read_configfile())
 
@@ -52,10 +52,6 @@ def cli():
                              default=defaults.get('applications_postfix'),
                              help='postfix to append to applications to '\
                                   'turn them into groups')
-            group.add_option('--pre-1.3',
-                             dest='no_meta', action='store_true',
-                             help='make adapter compatible with Ansible '
-                                  'before 1.3')
             parser.add_option_group(group)
 
         options = get_options(RECLASS_NAME, VERSION, DESCRIPTION,
@@ -72,6 +68,7 @@ def cli():
         storage = get_storage(options.storage_type, options.nodes_uri,
                               options.classes_uri)
         class_mappings = defaults.get('class_mappings')
+        no_meta = defaults.get('no_meta')
         reclass = Core(storage, class_mappings)
 
         if options.mode == MODE_NODEINFO:
@@ -88,7 +85,7 @@ def cli():
             else:
                 groups.update(apps)
 
-            if options.no_meta:
+            if no_meta:
                 data = groups
             else:
                 hostvars = dict()
