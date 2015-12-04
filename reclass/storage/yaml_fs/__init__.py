@@ -14,7 +14,7 @@ from directory import Directory
 from reclass.datatypes import Entity
 import reclass.errors
 
-FILE_EXTENSION = '.yml'
+FILE_EXTENSION = ('.yml', '.yaml')
 STORAGE_NAME = 'yaml_fs'
 
 def vvv(msg):

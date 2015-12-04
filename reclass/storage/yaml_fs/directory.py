@@ -11,7 +11,7 @@ import sys
 from reclass.errors import NotFoundError
 
 SKIPDIRS = ( 'CVS', 'SCCS' )
-FILE_EXTENSION = '.yml'
+FILE_EXTENSION = ('.yml', '.yaml')
 
 def vvv(msg):
     #print >>sys.stderr, msg
