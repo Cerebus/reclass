@@ -103,7 +103,7 @@ class ExternalNodeStorage(NodeStorageBase):
                 else:
                     return result
 
-        raise NotImplementedError
+        raise Exception('Node {} not found in your backends'.format(name))
 
     def get_class(self, name, nodename=None):
 
@@ -121,7 +121,7 @@ class ExternalNodeStorage(NodeStorageBase):
                 else:
                     return result
 
-        raise NotImplementedError
+        raise Exception('Class {} not found in your backends'.format(name))
 
     def enumerate_nodes(self):
         return self._nodes.keys()
