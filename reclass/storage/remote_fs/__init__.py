@@ -5,9 +5,8 @@ import sys
 
 import reclass.errors
 from reclass.storage import NodeStorageBase
-
-
 from reclass.storage.yaml_fs.directory import Directory
+
 from .remote_file import RemoteFile
 
 FILE_EXTENSION = '.yml'

@@ -1,13 +1,15 @@
 
-import yaml
 import requests
+import yaml
+from reclass.config import find_and_read_configfile
 
 
 class RemoteReclassClient(object):
 
+    '''Set ``remote_fs_url`` url to your backend.'''
+
     def get_endpoint(self):
-        '''TODO: from config'''
-        return 'http://10.10.10.166:80/reclass/'
+        return self.config.get('remote_fs_url', 'http://localhost/reclass/')
 
     def request(self, path):
 
@@ -26,9 +28,13 @@ class RemoteReclassClient(object):
         if 'error' in data:
             raise Exception(data['error'])
 
-        if 'rendered' in data:
+        if 'rendered' in data and data['rendered']:
             return yaml.load(data['rendered'])
 
         return data
+
+    @property
+    def config(self):
+        return find_and_read_configfile()
 
 client = RemoteReclassClient()
