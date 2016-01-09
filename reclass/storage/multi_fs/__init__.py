@@ -1,30 +1,30 @@
-#
-# -*- coding: utf-8 -*-
-#
-# This file is part of reclass (http://github.com/madduck/reclass)
-#
-# Copyright © 2007–14 martin f. krafft <madduck@madduck.net>
-# Released under the terms of the Artistic Licence 2.0
-#
-import os, sys
+
 import fnmatch
-from reclass.storage import NodeStorageBase
-from yamlfile import YamlFile
-from directory import Directory
-from reclass.datatypes import Entity
+import os
+import sys
+
 import reclass.errors
+from reclass.storage import NodeStorageBase
+from reclass.storage.yaml_fs.directory import Directory
+
 
 FILE_EXTENSION = '.yml'
-STORAGE_NAME = 'yaml_fs'
+STORAGE_NAME = 'multi_fs'
+
 
 def vvv(msg):
     #print >>sys.stderr, msg
     pass
 
+
 class ExternalNodeStorage(NodeStorageBase):
+
+    '''Combine more storage backends'''
 
     def __init__(self, nodes_uri, classes_uri, default_environment=None):
         super(ExternalNodeStorage, self).__init__(STORAGE_NAME)
+
+        self.backends = ['yaml_fs', 'remote_fs']
 
         def name_mangler(relpath, name):
             # nodes are identified just by their basename, so
@@ -55,8 +55,10 @@ class ExternalNodeStorage(NodeStorageBase):
 
     def _enumerate_inventory(self, basedir, name_mangler):
         ret = {}
+
         def register_fn(dirpath, filenames):
-            filenames = fnmatch.filter(filenames, '*{0}'.format(FILE_EXTENSION))
+            filenames = fnmatch.filter(
+                filenames, '*{0}'.format(FILE_EXTENSION))
             vvv('REGISTER {0} in path {1}'.format(filenames, dirpath))
             for f in filenames:
                 name = os.path.splitext(f)[0]
@@ -76,25 +78,48 @@ class ExternalNodeStorage(NodeStorageBase):
         d.walk(register_fn)
         return ret
 
+    def get_storage_backend(self, name, **kwargs):
+        from reclass.storage.loader import StorageBackendLoader
+        storage_class = StorageBackendLoader(name).load()
+        return storage_class(self._nodes_uri,
+                             self._classes_uri,
+                             default_environment=self._default_environment,
+                             **kwargs)
+
     def get_node(self, name):
-        vvv('GET NODE {0}'.format(name))
-        try:
-            relpath = self._nodes[name]
-            path = os.path.join(self.nodes_uri, relpath)
-            name = os.path.splitext(relpath)[0]
-        except KeyError, e:
-            raise reclass.errors.NodeNotFound(self.name, name, self.nodes_uri)
-        entity = YamlFile(path).get_entity(name, self._default_environment)
-        return entity
+        for backend_name in self.backends:
+            try:
+                backend = self.get_storage_backend(backend_name)
+            except Exception as e:
+                raise e
+            else:
+                try:
+                    result = backend.get_node(name)
+                except Exception as exc:
+                    print >>sys.stderr, 'Node {} not found in {} with {}'.format(
+                        name, backend_name, exc)
+                else:
+                    return result
+
+        raise NotImplementedError
 
     def get_class(self, name, nodename=None):
-        vvv('GET CLASS {0}'.format(name))
-        try:
-            path = os.path.join(self.classes_uri, self._classes[name])
-        except KeyError, e:
-            raise reclass.errors.ClassNotFound(self.name, name, self.classes_uri)
-        entity = YamlFile(path).get_entity(name)
-        return entity
+
+        for backend_name in self.backends:
+            try:
+                backend = self.get_storage_backend(backend_name)
+            except Exception as e:
+                raise e
+            else:
+                try:
+                    result = backend.get_class(name, nodename)
+                except Exception as exc:
+                    print >>sys.stderr, 'Could not foud class {} in {} with {}'.format(
+                        name, backend_name, exc)
+                else:
+                    return result
+
+        raise NotImplementedError
 
     def enumerate_nodes(self):
         return self._nodes.keys()
