@@ -6,6 +6,7 @@ import sys
 import reclass.errors
 from reclass.storage import NodeStorageBase
 from reclass.storage.yaml_fs.directory import Directory
+from reclass.config import find_and_read_configfile
 
 
 FILE_EXTENSION = '.yml'
@@ -24,7 +25,8 @@ class ExternalNodeStorage(NodeStorageBase):
     def __init__(self, nodes_uri, classes_uri, default_environment=None):
         super(ExternalNodeStorage, self).__init__(STORAGE_NAME)
 
-        self.backends = ['yaml_fs', 'remote_fs']
+        self.backends = find_and_read_configfile().get(
+            'multi_fs', ['yaml_fs', 'remote_fs'])
 
         def name_mangler(relpath, name):
             # nodes are identified just by their basename, so
