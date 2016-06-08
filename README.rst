@@ -2,4 +2,4 @@ reclass README
 ==============
 
 The documentation for **reclass** is available from
-http://reclass.pantsfullofunix.net.
+http://ub1quit33.github.io/reclass
