@@ -31,6 +31,8 @@ def main():
         class_mappings = defaults.get('class_mappings')
         reclass = Core(storage, class_mappings)
 
+        sys.path.append(options.inventory_base_uri)
+
         if options.mode == MODE_NODEINFO:
             data = reclass.nodeinfo(options.nodename)
 

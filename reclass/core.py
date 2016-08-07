@@ -13,7 +13,8 @@ import re
 #import sys
 import fnmatch
 import shlex
-from reclass.datatypes import Entity, Classes, Parameters
+import inspect
+from reclass.datatypes import Entity, Classes, Parameters, Mutators
 from reclass.errors import MappingFormatError, ClassNotFound
 
 class Core(object):
@@ -22,6 +23,7 @@ class Core(object):
         self._storage = storage
         self._class_mappings = class_mappings
         self._input_data = input_data
+        self._mutators = Mutators()
 
     @staticmethod
     def _get_timestamp():
@@ -120,6 +122,7 @@ class Core(object):
         ret = self._recurse_entity(node_entity, merge_base, seen=seen,
                                    nodename=node_entity.name)
         ret.interpolate()
+        self._mutators.push(ret.mutators)
         return ret
 
     def _nodeinfo_as_dict(self, nodename, entity):
@@ -132,22 +135,28 @@ class Core(object):
         ret.update(entity.as_dict())
         return ret
 
+    def _mutate(self, **kwargs):
+        params = set(kwargs.keys())
+        mutators = self._mutators.as_deque()
+        while len(mutators):
+            mutator = mutators.popleft()
+            args, varargs, keywords, defaults = inspect.getargspec(mutator)
+            required = set(args)
+            # If the caller passed us all parameters that this mutator requires,
+            # call the mutator with the arguments it wants
+            if (required & params) == required:
+                args = { arg: value for arg, value in kwargs.items() if arg in required }
+                mutator(**args)
+
     def nodeinfo(self, nodename):
-        return self.inventory()['nodes'][nodename]
+        inventory = self.inventory()
+        self._mutate(inventory=inventory, nodename=nodename)
+        return inventory['nodes'][nodename]
 
     def inventory(self):
         entities = {}
-
-        # first run, reference parameters are expanded
         for n in self._storage.enumerate_nodes():
             entities[n] = self._nodeinfo(n)
-
-        # second run, function are executed
-        #all_parameters = {}
-        #for nodename, info in entities.items():
-        #    all_parameters.update({nodename: info.parameters})
-        for nodename, node in entities.items():
-            node.expand_functions(inventory=entities)
 
         nodes = {}
         applications = {}
@@ -164,6 +173,7 @@ class Core(object):
                     classes[c].append(f)
                 else:
                     classes[c] = [f]
+        self._mutate(nodes=nodes, classes=classes, applications=applications)
 
         return {'__reclass__' : {'timestamp': Core._get_timestamp()},
                 'nodes': nodes,

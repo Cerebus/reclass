@@ -7,7 +7,7 @@
 # Released under the terms of the Artistic Licence 2.0
 #
 
-from reclass.utils.refvalue import ReferenceStringParameter
+from reclass.utils.refvalue import RefValue
 from reclass.defaults import PARAMETER_INTERPOLATION_SENTINELS, \
         PARAMETER_INTERPOLATION_DELIMITER
 from reclass.errors import UndefinedVariableError, \
@@ -31,17 +31,17 @@ CONTEXT = {'favcolour':'yellow',
 def _poor_mans_template(s, var, value):
     return s.replace(_var(var), value)
 
-class TestReferenceStringParameter(unittest.TestCase):
+class TestRefValue(unittest.TestCase):
 
     def test_simple_string(self):
         s = 'my cat likes to hide in boxes'
-        tv = ReferenceStringParameter(s)
+        tv = RefValue(s)
         self.assertFalse(tv.has_references())
         self.assertEquals(tv.render(CONTEXT), s)
 
     def _test_solo_ref(self, key):
         s = _var(key)
-        tv = ReferenceStringParameter(s)
+        tv = RefValue(s)
         res = tv.render(CONTEXT)
         self.assertTrue(tv.has_references())
         self.assertEqual(res, CONTEXT[key])
@@ -63,7 +63,7 @@ class TestReferenceStringParameter(unittest.TestCase):
 
     def test_single_subst_bothends(self):
         s = 'I like ' + _var('favcolour') + ' and I like it'
-        tv = ReferenceStringParameter(s)
+        tv = RefValue(s)
         self.assertTrue(tv.has_references())
         self.assertEqual(tv.render(CONTEXT),
                          _poor_mans_template(s, 'favcolour',
@@ -71,7 +71,7 @@ class TestReferenceStringParameter(unittest.TestCase):
 
     def test_single_subst_start(self):
         s = _var('favcolour') + ' is my favourite colour'
-        tv = ReferenceStringParameter(s)
+        tv = RefValue(s)
         self.assertTrue(tv.has_references())
         self.assertEqual(tv.render(CONTEXT),
                          _poor_mans_template(s, 'favcolour',
@@ -79,7 +79,7 @@ class TestReferenceStringParameter(unittest.TestCase):
 
     def test_single_subst_end(self):
         s = 'I like ' + _var('favcolour')
-        tv = ReferenceStringParameter(s)
+        tv = RefValue(s)
         self.assertTrue(tv.has_references())
         self.assertEqual(tv.render(CONTEXT),
                          _poor_mans_template(s, 'favcolour',
@@ -88,7 +88,7 @@ class TestReferenceStringParameter(unittest.TestCase):
     def test_deep_subst_solo(self):
         var = PARAMETER_INTERPOLATION_DELIMITER.join(('motd', 'greeting'))
         s = _var(var)
-        tv = ReferenceStringParameter(s)
+        tv = RefValue(s)
         self.assertTrue(tv.has_references())
         self.assertEqual(tv.render(CONTEXT),
                          _poor_mans_template(s, var,
@@ -97,7 +97,7 @@ class TestReferenceStringParameter(unittest.TestCase):
     def test_multiple_subst(self):
         greet = PARAMETER_INTERPOLATION_DELIMITER.join(('motd', 'greeting'))
         s = _var(greet) + ' I like ' + _var('favcolour') + '!'
-        tv = ReferenceStringParameter(s)
+        tv = RefValue(s)
         self.assertTrue(tv.has_references())
         want = _poor_mans_template(s, greet, CONTEXT['motd']['greeting'])
         want = _poor_mans_template(want, 'favcolour', CONTEXT['favcolour'])
@@ -106,7 +106,7 @@ class TestReferenceStringParameter(unittest.TestCase):
     def test_multiple_subst_flush(self):
         greet = PARAMETER_INTERPOLATION_DELIMITER.join(('motd', 'greeting'))
         s = _var(greet) + ' I like ' + _var('favcolour')
-        tv = ReferenceStringParameter(s)
+        tv = RefValue(s)
         self.assertTrue(tv.has_references())
         want = _poor_mans_template(s, greet, CONTEXT['motd']['greeting'])
         want = _poor_mans_template(want, 'favcolour', CONTEXT['favcolour'])
@@ -114,14 +114,14 @@ class TestReferenceStringParameter(unittest.TestCase):
 
     def test_undefined_variable(self):
         s = _var('no_such_variable')
-        tv = ReferenceStringParameter(s)
+        tv = RefValue(s)
         with self.assertRaises(UndefinedVariableError):
             tv.render(CONTEXT)
 
     def test_incomplete_variable(self):
         s = PARAMETER_INTERPOLATION_SENTINELS[0] + 'incomplete'
         with self.assertRaises(IncompleteInterpolationError):
-            tv = ReferenceStringParameter(s)
+            tv = RefValue(s)
 
 if __name__ == '__main__':
     unittest.main()

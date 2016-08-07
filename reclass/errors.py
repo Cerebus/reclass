@@ -10,8 +10,7 @@
 import posix, sys
 import traceback
 
-from reclass.defaults import (PARAMETER_INTERPOLATION_SENTINELS,
-                              FUNCTION_INTERPOLATION_SENTINELS)
+from reclass.defaults import PARAMETER_INTERPOLATION_SENTINELS
 
 class ReclassException(Exception):
 
@@ -143,16 +142,6 @@ class UndefinedVariableError(InterpolationError):
 
     def set_context(self, context):
         self._context = context
-
-
-class UndefinedFunctionError(InterpolationError):
-    def __init__(self, var):
-        super(UndefinedFunctionError, self).__init__(msg=None)
-        self._var = var
-    var = property(lambda self: self._var)
-
-    def _get_message(self):
-        return "Unknown function in " + self._var.join(FUNCTION_INTERPOLATION_SENTINELS)
 
 
 class IncompleteInterpolationError(InterpolationError):

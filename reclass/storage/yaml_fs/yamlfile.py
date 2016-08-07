@@ -47,6 +47,11 @@ class YamlFile(object):
             parameters = {}
         parameters = datatypes.Parameters(parameters)
 
+        mutators = self._data.get('mutators')
+        if mutators is None:
+            mutators = []
+        mutators = datatypes.Mutators(datatypes.Mutators.load_callables(mutators))
+
         env = self._data.get('environment', default_environment)
 
         if name is None:
@@ -54,7 +59,8 @@ class YamlFile(object):
 
         return datatypes.Entity(classes, applications, parameters,
                                 name=name, environment=env,
-                                uri='yaml_fs://{0}'.format(self._path))
+                                uri='yaml_fs://{0}'.format(self._path),
+                                mutators=mutators)
 
     def __repr__(self):
         return '<{0} {1}, {2}>'.format(self.__class__.__name__, self._path,

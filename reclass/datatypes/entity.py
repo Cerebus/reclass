@@ -9,6 +9,7 @@
 from classes import Classes
 from applications import Applications
 from parameters import Parameters
+from mutators import Mutators
 
 class Entity(object):
     '''
@@ -17,13 +18,15 @@ class Entity(object):
     uri of the Entity that is being merged.
     '''
     def __init__(self, classes=None, applications=None, parameters=None,
-                 uri=None, name=None, environment=None):
+                 uri=None, name=None, environment=None, mutators=None):
         if classes is None: classes = Classes()
         self._set_classes(classes)
         if applications is None: applications = Applications()
         self._set_applications(applications)
         if parameters is None: parameters = Parameters()
         self._set_parameters(parameters)
+        if mutators is None: mutators = Mutators()
+        self._set_mutators(mutators)
         self._uri = uri or ''
         self._name = name or ''
         self._environment = environment or ''
@@ -34,6 +37,7 @@ class Entity(object):
     classes = property(lambda s: s._classes)
     applications = property(lambda s: s._applications)
     parameters = property(lambda s: s._parameters)
+    mutators = property(lambda s: s._mutators)
 
     def _set_classes(self, classes):
         if not isinstance(classes, Classes):
@@ -53,13 +57,17 @@ class Entity(object):
                             'instance of type %s' % type(parameters))
         self._parameters = parameters
 
-    def expand_functions(self, inventory):
-        self.parameters.interpolate_functions(inventory)
+    def _set_mutators(self, mutators):
+        if not isinstance(mutators, Mutators):
+            raise TypeError('Entity.mutators cannot be set to '\
+                            'instance of type %s' % type(mutators))
+        self._mutators = mutators
 
     def merge(self, other):
         self._classes.merge_unique(other._classes)
         self._applications.merge_unique(other._applications)
         self._parameters.merge(other._parameters)
+        self._mutators.push(other._mutators)
         self._name = other.name
         self._uri = other.uri
         self._environment = other.environment
