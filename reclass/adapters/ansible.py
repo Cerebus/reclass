@@ -43,6 +43,7 @@ def cli():
                     'no_meta': True
                    }
         defaults.update(find_and_read_configfile())
+        sys.path.append(ansible_dir)
 
         def add_ansible_options_group(parser, defaults):
             group = optparse.OptionGroup(parser, 'Ansible options',

@@ -56,6 +56,9 @@ def top(minion_id, storage_type=OPT_STORAGE_TYPE,
                           default_environment='base')
     reclass = Core(storage, class_mappings, input_data=None)
 
+    if inventory_base_uri not in sys.path:
+      sys.path.append(inventory_base_uri)
+
     # if the minion_id is not None, then return just the applications for the
     # specific minion, otherwise return the entire top data (which we need for
     # CLI invocations of the adapter):
@@ -85,6 +88,7 @@ def cli():
                     'inventory_base_uri': inventory_dir
                    }
         defaults.update(find_and_read_configfile())
+        sys.path.append(inventory_dir)
         options = get_options(RECLASS_NAME, VERSION, DESCRIPTION,
                               inventory_shortopt='-t',
                               inventory_longopt='--top',
