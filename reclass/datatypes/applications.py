@@ -7,6 +7,7 @@
 # Released under the terms of the Artistic Licence 2.0
 #
 
+from reclass.defaults import APPLICATION_NEGATION_PREFIX
 from classes import Classes
 
 class Applications(Classes):
@@ -19,7 +20,7 @@ class Applications(Classes):
     extend another instance, in which case the negations should apply to the
     instance to be extended.
     '''
-    DEFAULT_NEGATION_PREFIX = '~'
+    DEFAULT_NEGATION_PREFIX = APPLICATION_NEGATION_PREFIX
 
     def __init__(self, iterable=None,
                  negation_prefix=DEFAULT_NEGATION_PREFIX):

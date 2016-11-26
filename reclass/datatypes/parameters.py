@@ -8,7 +8,8 @@
 #
 import types
 
-from reclass.defaults import PARAMETER_INTERPOLATION_DELIMITER
+from reclass.defaults import PARAMETER_INTERPOLATION_DELIMITER,\
+    APPLICATION_NEGATION_PREFIX
 from reclass.utils.dictpath import DictPath
 from reclass.utils.refvalue import RefValue
 from reclass.errors import InfiniteRecursionError, UndefinedVariableError
@@ -44,6 +45,10 @@ class Parameters(object):
         self._delimiter = delimiter
         self._base = {}
         self._occurrences = {}
+        # These are both the same right now, could potentially be different
+        # values at some later point
+        self.item_negation_prefix = APPLICATION_NEGATION_PREFIX
+        self.key_override_prefix = APPLICATION_NEGATION_PREFIX
         if mapping is not None:
             # we initialise by merging, otherwise the list of references might
             # not be updated
@@ -135,9 +140,24 @@ class Parameters(object):
             return ret
 
         for key, newvalue in new.iteritems():
-            ret[key] = self._merge_recurse(ret.get(key), newvalue,
-                                           path.new_subpath(key))
+            # simple override if we're working with prefixed keys
+            if key.startswith(self.key_override_prefix):
+                ret[key] = newvalue
+            else:
+                ret[key] = self._merge_recurse(ret.get(key), newvalue, path.new_subpath(key))
+
         return ret
+
+    def clean_overrides(self):
+        """override all keys in parameters with their override-prefixed equivalents"""
+        # loop optimizations
+        ovrprfx = self.key_override_prefix
+        toclean = self._base
+        # iterate over the keys in parameters
+        for key in toclean.keys():
+            if key.startswith(ovrprfx):
+                # remove suffix and reinstert overridden key
+                toclean[key.lstrip(ovrprfx)] = toclean.pop(key)
 
     def _merge_recurse(self, cur, new, path=None):
         if path is None:

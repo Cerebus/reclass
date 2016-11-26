@@ -107,6 +107,7 @@ class Core(object):
         # result of the iteration, so that elements at the current level
         # overwrite stuff defined by parents
         merge_base.merge(entity)
+        merge_base.parameters.clean_overrides()
         return merge_base
 
     def _nodeinfo(self, nodename):
