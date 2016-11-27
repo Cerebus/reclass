@@ -19,6 +19,7 @@ from reclass.errors import ReclassException
 from reclass.config import find_and_read_configfile, get_options
 from reclass.version import *
 from reclass.constants import MODE_NODEINFO
+from reclass.utils.merge_dicts import merge_dicts
 
 def cli():
     try:
@@ -69,17 +70,32 @@ def cli():
 
         else:
             data = reclass.inventory()
-            # Ansible inventory is only the list of groups. Groups are the set
-            # of classes plus the set of applications with the postfix added:
-            groups = data['classes']
-            apps = data['applications']
+
+            # put the only forking logic up here
             if options.applications_postfix:
                 postfix = options.applications_postfix
-                groups.update([(k + postfix, v) for k,v in apps.iteritems()])
             else:
-                groups.update(apps)
+                postfix = ''
+            # instantiate base classes dict
+            groups = {groupname: {'hosts': hosts} for groupname, hosts in data.pop('classes').iteritems()}
+            # add applications to classes
+            groups.update({app + postfix: {'hosts': hosts} for app, hosts in data.pop('applications').iteritems()})
+            # instantiate
+            hostvars = {node: merge_dicts(
+                values['parameters'],
+                {'__reclass__': merge_dicts(
+                    values['__reclass__'],
+                    {'applications': values['applications']},
+                    {'classes': values['classes']}
+                )}) for node, values in data.pop('nodes').iteritems()}
+            for node, parameters in hostvars.iteritems():
+                environment = parameters['__reclass__']['environment']
+                if environment in groups.keys():
+                    groups[environment]['hosts'].append(node)
+                else:
+                    groups[environment] = {'hosts': [node]}
 
-            data = groups
+            data = merge_dicts(groups, {'_meta': {'hostvars': hostvars}})
 
         print output(data, options.output, options.pretty_print)
 
@@ -90,3 +106,11 @@ def cli():
 
 if __name__ == '__main__':
     cli()
+#
+# -*- coding: utf-8 -*-
+#
+# This file is part of reclass (http://github.com/madduck/reclass)
+#
+# Copyright © 2007–14 martin f. krafft <madduck@madduck.net>
+# Released under the terms of the Artistic Licence 2.0
+#
