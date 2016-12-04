@@ -8,7 +8,9 @@
 #
 import types
 
-from reclass.defaults import PARAMETER_INTERPOLATION_DELIMITER
+from reclass.defaults import PARAMETER_INTERPOLATION_DELIMITER,\
+                             PARAMETER_LIST_ITEM_NEGATION_PREFIX,\
+                             PARAMETER_DICT_KEY_OVERRIDE_PREFIX
 from reclass.utils.dictpath import DictPath
 from reclass.utils.refvalue import RefValue
 from reclass.errors import InfiniteRecursionError, UndefinedVariableError
@@ -37,6 +39,8 @@ class Parameters(object):
     functionality and does not try to be a really mapping object.
     '''
     DEFAULT_PATH_DELIMITER = PARAMETER_INTERPOLATION_DELIMITER
+    LIST_ITEM_NEGATION_PREFIX = PARAMETER_LIST_ITEM_NEGATION_PREFIX
+    DICT_KEY_OVERRIDE_PREFIX = PARAMETER_DICT_KEY_OVERRIDE_PREFIX
 
     def __init__(self, mapping=None, delimiter=None):
         if delimiter is None:
@@ -107,7 +111,25 @@ class Parameters(object):
         self._occurrences[path] = ret
         return ret
 
-    def _extend_list(self, cur, new, path):
+    def _extend_list(self, cur, new, path, initmerge):
+        """Extend a list with another list.
+
+        Iterate over items in new. If this is not an initialization merge and the
+        item is a string, remove it from cur if it begins with
+        LIST_ITEM_NEGATION_PREFIX. Otherwise extend cur with the value of
+        _merge_recurse over the item.
+
+        Args:
+            cur (list): Current list
+            new (list): List to be appended
+            path (string): Merging path from recursion
+            initmerge (bool): True if called as part of entity init
+
+        Returns:
+            list: an extended list
+
+        """
+
         if isinstance(cur, list):
             ret = cur
             offset = len(cur)
@@ -115,11 +137,42 @@ class Parameters(object):
             ret = [cur]
             offset = 1
 
+        # shorten the negation prefix reference for cleanliness and instantiate
+        # the negations list
+        negprfx = Parameters.LIST_ITEM_NEGATION_PREFIX
+        negations = []
+
         for i in xrange(len(new)):
-            ret.append(self._merge_recurse(None, new[i], path.new_subpath(offset + i)))
+            newitem = new[i]
+            # only append a negation if the item is a string and we aren't coming from init
+            if isinstance(newitem, str) and newitem.startswith(negprfx) and not initmerge:
+                negations.append(new[i].lstrip(negprfx))
+            else:
+                ret.append(self._merge_recurse(None, new[i], path.new_subpath(offset + i), initmerge))
+        # only run negations if we actually have them and we aren't coming from init
+        if not initmerge and negations:
+            ret = [item for item in ret if item not in negations]
         return ret
 
-    def _merge_dict(self, cur, new, path):
+    def _merge_dict(self, cur, new, path, initmerge):
+        """Merge a dictionary with another dictionary.
+
+        Iterate over keys in new. If this is not an initialization merge and
+        the key begins with PARAMETER_DICT_KEY_OVERRIDE_PREFIX, override the
+        value of the key in cur. Otherwise deeply merge the contents of the key
+        in cur with the contents of the key in _merge_recurse over the item.
+
+        Args:
+            cur (dict): Current dictionary
+            new (dict): Dictionary to be merged
+            path (string): Merging path from recursion
+            initmerge (bool): True if called as part of entity init
+
+        Returns:
+            dict: a merged dictionary
+
+        """
+
         if isinstance(cur, dict):
             ret = cur
         else:
@@ -134,31 +187,69 @@ class Parameters(object):
             ret.update(new)
             return ret
 
+        ovrprfx = Parameters.DICT_KEY_OVERRIDE_PREFIX
+
         for key, newvalue in new.iteritems():
-            ret[key] = self._merge_recurse(ret.get(key), newvalue,
-                                           path.new_subpath(key))
+            if key.startswith(ovrprfx) and not initmerge:
+                ret[key.lstrip(ovrprfx)] = newvalue
+            else:
+                ret[key] = self._merge_recurse(ret.get(key), newvalue,
+                                            path.new_subpath(key), initmerge)
         return ret
 
-    def _merge_recurse(self, cur, new, path=None):
+    def _merge_recurse(self, cur, new, path=None, initmerge=False):
+        """Merge a parameter with another parameter.
+
+        Iterate over keys in new. Call _merge_dict, _extend_list, or
+        _update_scalar depending on type. Pass along whether this is an
+        initialization merge.
+
+        Args:
+            cur (dict): Current dictionary
+            new (dict): Dictionary to be merged
+            path (string): Merging path from recursion
+            initmerge (bool): True if called as part of entity init, defaults
+                to False
+
+        Returns:
+            dict: a merged dictionary
+
+        """
+
         if path is None:
             path = DictPath(self.delimiter)
 
         if isinstance(new, dict):
             if cur is None:
                 cur = {}
-            return self._merge_dict(cur, new, path)
+            return self._merge_dict(cur, new, path, initmerge)
 
         elif isinstance(new, list):
             if cur is None:
                 cur = []
-            return self._extend_list(cur, new, path)
+            return self._extend_list(cur, new, path, initmerge)
 
         else:
             return self._update_scalar(cur, new, path)
 
     def merge(self, other):
+        """Merge function (public edition).
+
+        Call _merge_recurse on self with either another Parameter object or a
+        dict (for initialization). Set initmerge if it's a dict.
+
+        Args:
+            other (dict or Parameter): Thing to merge with self._base
+
+        Returns:
+            None: Nothing
+
+        """
+
+        # If we're merging in a dict this is an initialization merge, so set
+        # the parameter accordingly
         if isinstance(other, dict):
-            self._base = self._merge_recurse(self._base, other, None)
+            self._base = self._merge_recurse(self._base, other, None, initmerge=True)
 
         elif isinstance(other, self.__class__):
             self._base = self._merge_recurse(self._base, other._base,
